@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tasks — a working list</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ground:#EEF1F4;
+    --surface:#FFFFFF;
+    --ink:#232733;
+    --ink-muted:#6B7280;
+    --accent:#FF6B4A;
+    --accent-ink:#7A2E1C;
+    --success:#2F9E68;
+    --danger:#D6483A;
+    --hairline:#DDE2E8;
+    --radius:14px;
+    --shadow:0 1px 2px rgba(35,39,51,.04), 0 8px 24px rgba(35,39,51,.06);
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+
+  body{
+    min-height:100vh;
+    background:var(--ground);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(35,39,51,.05) 1px, transparent 0);
+    background-size:22px 22px;
+    color:var(--ink);
+    font-family:'Inter', system-ui, sans-serif;
+    display:flex;
+    justify-content:center;
+    padding:48px 20px 80px;
+  }
+
+  .app{
+    width:100%;
+    max-width:560px;
+  }
+
+  /* ---------- Header ---------- */
+  .app__header{ margin-bottom:28px; }
+
+  .app__title-row{
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+  }
+
+  .app__title{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:2.1rem;
+    letter-spacing:-0.01em;
+    margin:0;
+  }
+
+  .app__count{
+    font-family:'JetBrains Mono', monospace;
+    font-size:.95rem;
+    color:var(--ink-muted);
+    padding:2px 8px;
+    border:1px solid var(--hairline);
+    border-radius:999px;
+    background:var(--surface);
+  }
+
+  .app__subtitle{
+    margin:6px 0 0;
+    color:var(--ink-muted);
+    font-size:.95rem;
+  }
+
+  /* ---------- Composer ---------- */
+  .composer{
+    display:flex;
+    gap:10px;
+    margin-bottom:18px;
+  }
+
+  .composer__input{
+    flex:1;
+    font-family:inherit;
+    font-size:1rem;
+    padding:14px 16px;
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    background:var(--surface);
+    color:var(--ink);
+    box-shadow:var(--shadow);
+    outline:none;
+    transition:border-color .15s ease;
+  }
+  .composer__input::placeholder{ color:#9AA1AC; }
+  .composer__input:focus{ border-color:var(--accent); }
+  .composer__input:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  .composer__add{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:.95rem;
+    padding:0 22px;
+    border:none;
+    border-radius:var(--radius);
+    background:var(--ink);
+    color:#fff;
+    cursor:pointer;
+    transition:transform .12s ease, background .15s ease;
+  }
+  .composer__add:hover{ background:var(--accent-ink); }
+  .composer__add:active{ transform:scale(.96); }
+  .composer__add:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  /* ---------- Filters ---------- */
+  .filters{
+    display:flex;
+    gap:6px;
+    margin-bottom:14px;
+  }
+
+  .filter{
+    font-family:'Inter', sans-serif;
+    font-weight:500;
+    font-size:.85rem;
+    color:var(--ink-muted);
+    background:transparent;
+    border:1px solid transparent;
+    border-radius:999px;
+    padding:7px 14px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    transition:background .15s ease, color .15s ease;
+  }
+  .filter:hover{ background:rgba(35,39,51,.05); }
+  .filter:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .filter .badge{
+    font-family:'JetBrains Mono', monospace;
+    font-size:.75rem;
+    opacity:.75;
+  }
+  .filter.active{
+    background:var(--ink);
+    color:#fff;
+  }
+  .filter.active .badge{ opacity:.6; }
+
+  /* ---------- List ---------- */
+  .list{
+    list-style:none;
+    margin:0 0 14px;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+
+  .task{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:var(--surface);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:13px 14px;
+    box-shadow:var(--shadow);
+    max-height:200px;
+    overflow:hidden;
+    animation:taskIn .22s ease both;
+  }
+  .task.removing{
+    animation:taskOut .18s ease forwards;
+  }
+
+  @keyframes taskIn{
+    from{ opacity:0; transform:translateY(-6px) scale(.98); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+  @keyframes taskOut{
+    from{ opacity:1; max-height:200px; margin-bottom:0; padding-top:13px; padding-bottom:13px; }
+    to{ opacity:0; max-height:0; margin-bottom:-8px; padding-top:0; padding-bottom:0; border-width:0; }
+  }
+
+  .task__check{
+    flex:0 0 auto;
+    width:24px;
+    height:24px;
+    border-radius:50%;
+    border:2px solid var(--hairline);
+    background:transparent;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .task__check:hover{ border-color:var(--success); }
+  .task__check:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .task__check-icon{
+    width:13px;
+    height:13px;
+    stroke:#fff;
+    stroke-width:3;
+    fill:none;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    stroke-dasharray:24;
+    stroke-dashoffset:24;
+    transition:stroke-dashoffset .25s ease;
+  }
+  .task.completed .task__check{
+    background:var(--success);
+    border-color:var(--success);
+  }
+  .task.completed .task__check-icon{ stroke-dashoffset:0; }
+
+  .task__text{
+    flex:1;
+    position:relative;
+    font-size:.98rem;
+    line-height:1.4;
+    word-break:break-word;
+    cursor:text;
+    color:var(--ink);
+    transition:color .2s ease;
+  }
+  .task__text::after{
+    content:'';
+    position:absolute;
+    left:0; right:0; top:50%;
+    height:2px;
+    background:var(--ink-muted);
+    transform:scaleX(0);
+    transform-origin:left;
+    transition:transform .25s ease;
+  }
+  .task.completed .task__text{ color:var(--ink-muted); }
+  .task.completed .task__text::after{ transform:scaleX(1); }
+
+  .task__edit-input{
+    flex:1;
+    font-family:inherit;
+    font-size:.98rem;
+    padding:4px 6px;
+    border:none;
+    border-bottom:2px solid var(--accent);
+    background:transparent;
+    color:var(--ink);
+    outline:none;
+  }
+
+  .task__delete{
+    flex:0 0 auto;
+    width:26px;
+    height:26px;
+    border:none;
+    background:transparent;
+    color:var(--ink-muted);
+    cursor:pointer;
+    opacity:0;
+    transition:opacity .15s ease, color .15s ease;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .task:hover .task__delete,
+  .task__delete:focus-visible{ opacity:1; }
+  .task__delete:hover{ color:var(--danger); }
+  .task__delete svg{ width:16px; height:16px; }
+  .task__delete:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  /* ---------- Empty state ---------- */
+  .empty{
+    text-align:center;
+    color:var(--ink-muted);
+    padding:36px 16px;
+    border:1px dashed var(--hairline);
+    border-radius:var(--radius);
+    font-size:.95rem;
+  }
+
+  /* ---------- Footer ---------- */
+  .app__footer{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:.85rem;
+    color:var(--ink-muted);
+    font-family:'JetBrains Mono', monospace;
+  }
+
+  .link-btn{
+    font-family:'Inter', sans-serif;
+    font-size:.85rem;
+    color:var(--ink-muted);
+    background:none;
+    border:none;
+    cursor:pointer;
+    text-decoration:underline;
+    text-decoration-color:transparent;
+    transition:text-decoration-color .15s ease, color .15s ease;
+  }
+  .link-btn:hover{ color:var(--accent-ink); text-decoration-color:currentColor; }
+  .link-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .link-btn:disabled{ opacity:.4; cursor:default; text-decoration:none; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="app__header">
+    <div class="app__title-row">
+      <h1 class="app__title">Tasks</h1>
+      <span class="app__count" id="liveCount">0 total</span>
+    </div>
+    <p class="app__subtitle">A working list, kept honest.</p>
+  </header>
+
+  <form class="composer" id="composer">
+    <input
+      type="text"
+      id="taskInput"
+      class="composer__input"
+      placeholder="What needs doing?"
+      autocomplete="off"
+      maxlength="200"
+      aria-label="New task"
+    >
+    <button type="submit" class="composer__add">Add</button>
+  </form>
+
+  <div class="filters" role="tablist" aria-label="Filter tasks">
+    <button class="filter active" data-filter="all" role="tab" aria-selected="true">
+      All <span class="badge" id="badge-all">0</span>
+    </button>
+    <button class="filter" data-filter="active" role="tab" aria-selected="false">
+      Active <span class="badge" id="badge-active">0</span>
+    </button>
+    <button class="filter" data-filter="completed" role="tab" aria-selected="false">
+      Completed <span class="badge" id="badge-completed">0</span>
+    </button>
+  </div>
+
+  <ul class="list" id="taskList"></ul>
+
+  <div class="empty" id="emptyState" hidden></div>
+
+  <footer class="app__footer">
+    <span id="itemsLeft">0 items left</span>
+    <button class="link-btn" id="clearCompleted">Clear completed</button>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     STATE + PERSISTENCE
+     Every task is { id, text, completed, createdAt }.
+     The entire array is serialized to localStorage on every
+     change, and re-read once on page load. This is the whole
+     "persistence" story for a client-side app like this one.
+  ============================================================ */
+
+  const STORAGE_KEY = "todo-app:tasks:v1";
+
+  function loadTasks(){
+    try{
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    }catch(err){
+      // Corrupt JSON, storage disabled (e.g. private mode), or quota issues
+      // all land here. We fail soft: start with an empty list rather than
+      // crashing the app.
+      console.warn("Could not read saved tasks, starting fresh.", err);
+      return [];
+    }
+  }
+
+  function saveTasks(){
+    try{
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    }catch(err){
+      console.warn("Could not save tasks (storage may be full or disabled).", err);
+    }
+  }
+
+  function makeId(){
+    return (window.crypto && window.crypto.randomUUID)
+      ? window.crypto.randomUUID()
+      : "id-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+  }
+
+  let tasks = loadTasks();
+  let currentFilter = "all"; // "all" | "active" | "completed"
+
+  /* ============================================================
+     DOM REFERENCES
+  ============================================================ */
+
+  const composer       = document.getElementById("composer");
+  const taskInput       = document.getElementById("taskInput");
+  const taskList        = document.getElementById("taskList");
+  const emptyState      = document.getElementById("emptyState");
+  const filtersBar       = document.querySelector(".filters");
+  const itemsLeftEl     = document.getElementById("itemsLeft");
+  const liveCountEl     = document.getElementById("liveCount");
+  const clearCompletedBtn = document.getElementById("clearCompleted");
+  const badges = {
+    all: document.getElementById("badge-all"),
+    active: document.getElementById("badge-active"),
+    completed: document.getElementById("badge-completed"),
+  };
+
+  /* ============================================================
+     CRUD OPERATIONS
+     Each one mutates `tasks`, persists, then re-renders.
+  ============================================================ */
+
+  function addTask(text){
+    const trimmed = text.trim();
+    if(!trimmed) return;
+    tasks.push({
+      id: makeId(),
+      text: trimmed,
+      completed: false,
+      createdAt: Date.now(),
+    });
+    saveTasks();
+    render({ justAddedId: tasks[tasks.length - 1].id });
+  }
+
+  function toggleTask(id){
+    const task = tasks.find(t => t.id === id);
+    if(!task) return;
+    task.completed = !task.completed;
+    saveTasks();
+    render();
+  }
+
+  function updateTaskText(id, newText){
+    const trimmed = newText.trim();
+    const task = tasks.find(t => t.id === id);
+    if(!task) return;
+    if(trimmed){
+      task.text = trimmed;
+      saveTasks();
+    }
+    render(); // re-render even on empty edit, to restore the original text
+  }
+
+  function deleteTask(id){
+    const li = taskList.querySelector('[data-id="' + id + '"]');
+    const removeFromState = () => {
+      tasks = tasks.filter(t => t.id !== id);
+      saveTasks();
+      render();
+    };
+
+    if(!li){ removeFromState(); return; }
+
+    // Play the exit animation, then actually remove the data.
+    // If animations are disabled (reduced motion), this still fires
+    // because animationend isn't blocked, just instant.
+    li.classList.add("removing");
+    li.addEventListener("animationend", removeFromState, { once: true });
+  }
+
+  function clearCompleted(){
+    const completedIds = tasks.filter(t => t.completed).map(t => t.id);
+    if(completedIds.length === 0) return;
+
+    completedIds.forEach(id => {
+      const li = taskList.querySelector('[data-id="' + id + '"]');
+      if(li) li.classList.add("removing");
+    });
+
+    tasks = tasks.filter(t => !t.completed);
+    saveTasks();
+
+    // Give the exit animation a beat before re-rendering the trimmed list.
+    window.setTimeout(render, 180);
+  }
+
+  /* ============================================================
+     RENDERING
+     We rebuild the visible list from scratch each time. For a
+     list this size that's simpler and plenty fast; it avoids a
+     whole class of "DOM and state disagree" bugs.
+  ============================================================ */
+
+  function getVisibleTasks(){
+    if(currentFilter === "active") return tasks.filter(t => !t.completed);
+    if(currentFilter === "completed") return tasks.filter(t => t.completed);
+    return tasks;
+  }
+
+  function buildCheckIcon(){
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("class", "task__check-icon");
+    svg.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M4 12l5 5L20 6");
+    svg.appendChild(path);
+    return svg;
+  }
+
+  function buildDeleteIcon(){
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M6 6l12 12M18 6L6 18");
+    path.setAttribute("stroke", "currentColor");
+    path.setAttribute("stroke-width", "2");
+    path.setAttribute("stroke-linecap", "round");
+    svg.appendChild(path);
+    return svg;
+  }
+
+  function buildTaskRow(task){
+    const li = document.createElement("li");
+    li.className = "task" + (task.completed ? " completed" : "");
+    li.dataset.id = task.id;
+
+    const checkBtn = document.createElement("button");
+    checkBtn.type = "button";
+    checkBtn.className = "task__check";
+    checkBtn.setAttribute("aria-label", task.completed ? "Mark as not done" : "Mark as done");
+    checkBtn.appendChild(buildCheckIcon());
+
+    const textSpan = document.createElement("span");
+    textSpan.className = "task__text";
+    textSpan.textContent = task.text; // textContent, never innerHTML: avoids XSS
+    textSpan.tabIndex = 0;
+    textSpan.title = "Double-click to edit";
+
+    const editInput = document.createElement("input");
+    editInput.type = "text";
+    editInput.className = "task__edit-input";
+    editInput.maxLength = 200;
+    editInput.value = task.text;
+    editInput.hidden = true;
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "task__delete";
+    deleteBtn.setAttribute("aria-label", "Delete task");
+    deleteBtn.appendChild(buildDeleteIcon());
+
+    li.append(checkBtn, textSpan, editInput, deleteBtn);
+    return li;
+  }
+
+  function startEditing(li){
+    const textSpan = li.querySelector(".task__text");
+    const editInput = li.querySelector(".task__edit-input");
+    textSpan.hidden = true;
+    editInput.hidden = false;
+    editInput.focus();
+    editInput.select();
+  }
+
+  function finishEditing(li, { commit }){
+    const id = li.dataset.id;
+    const editInput = li.querySelector(".task__edit-input");
+    if(commit){
+      updateTaskText(id, editInput.value);
+    }else{
+      render(); // discard edits, just redraw from saved state
+    }
+  }
+
+  function updateEmptyState(visibleCount){
+    if(visibleCount > 0){
+      emptyState.hidden = true;
+      return;
+    }
+    emptyState.hidden = false;
+    if(tasks.length === 0){
+      emptyState.textContent = "Nothing here yet. Add your first task above.";
+    }else if(currentFilter === "active"){
+      emptyState.textContent = "No active tasks — nice work.";
+    }else if(currentFilter === "completed"){
+      emptyState.textContent = "Nothing completed yet.";
+    }
+  }
+
+  function updateCounts(){
+    const total = tasks.length;
+    const completedCount = tasks.filter(t => t.completed).length;
+    const activeCount = total - completedCount;
+
+    badges.all.textContent = total;
+    badges.active.textContent = activeCount;
+    badges.completed.textContent = completedCount;
+
+    liveCountEl.textContent = total + (total === 1 ? " total" : " total");
+    itemsLeftEl.textContent = activeCount + (activeCount === 1 ? " item left" : " items left");
+
+    clearCompletedBtn.disabled = completedCount === 0;
+  }
+
+  function render(opts){
+    opts = opts || {};
+    taskList.innerHTML = "";
+
+    const visible = getVisibleTasks();
+    visible.forEach(task => {
+      const li = buildTaskRow(task);
+      if(opts.justAddedId && task.id === opts.justAddedId){
+        // Let the entrance animation play (it's the default state already);
+        // nothing extra needed since new rows are appended with `taskIn`.
+      }
+      taskList.appendChild(li);
+    });
+
+    updateEmptyState(visible.length);
+    updateCounts();
+  }
+
+  /* ============================================================
+     EVENT HANDLING
+     Everything inside the list is handled through ONE listener
+     per event type on the shared parent (event delegation),
+     rather than attaching listeners to every row. This means
+     newly-added rows automatically work with no extra wiring.
+  ============================================================ */
+
+  composer.addEventListener("submit", function(e){
+    e.preventDefault();
+    addTask(taskInput.value);
+    taskInput.value = "";
+    taskInput.focus();
+  });
+
+  taskList.addEventListener("click", function(e){
+    const li = e.target.closest(".task");
+    if(!li) return;
+    const id = li.dataset.id;
+
+    if(e.target.closest(".task__check")){
+      toggleTask(id);
+    }else if(e.target.closest(".task__delete")){
+      deleteTask(id);
+    }
+  });
+
+  taskList.addEventListener("dblclick", function(e){
+    const textSpan = e.target.closest(".task__text");
+    if(!textSpan) return;
+    startEditing(textSpan.closest(".task"));
+  });
+
+  // Saving/cancelling an edit, delegated for both blur and key events.
+  taskList.addEventListener("keydown", function(e){
+    const editInput = e.target.closest(".task__edit-input");
+    if(!editInput) return;
+    const li = editInput.closest(".task");
+    if(e.key === "Enter"){
+      e.preventDefault();
+      finishEditing(li, { commit: true });
+    }else if(e.key === "Escape"){
+      e.preventDefault();
+      finishEditing(li, { commit: false });
+    }
+  });
+
+  taskList.addEventListener("focusout", function(e){
+    const editInput = e.target.closest(".task__edit-input");
+    if(!editInput) return;
+    finishEditing(editInput.closest(".task"), { commit: true });
+  });
+
+  filtersBar.addEventListener("click", function(e){
+    const btn = e.target.closest(".filter");
+    if(!btn) return;
+    currentFilter = btn.dataset.filter;
+
+    filtersBar.querySelectorAll(".filter").forEach(f => {
+      const isActive = f === btn;
+      f.classList.toggle("active", isActive);
+      f.setAttribute("aria-selected", String(isActive));
+    });
+
+    render();
+  });
+
+  clearCompletedBtn.addEventListener("click", clearCompleted);
+
+  /* ============================================================
+     INITIAL RENDER
+  ============================================================ */
+  render();
+
+})();
+</script>
+</body>
+</html>
